@@ -9,35 +9,37 @@ export default async function handler(req, res) {
   }
 
   const { system, user } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: {
-          parts: [{ text: system }]
-        },
-        contents: [
-          { role: "user", parts: [{ text: user }] }
-        ],
-        generationConfig: {
-          maxOutputTokens: 300,
-          temperature: 0.2,
-        },
-      }),
-    }
-  );
+  if (!apiKey) {
+    return res.status(500).json({ error: "API key not configured on server" });
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": "https://reacture.app",   // your site URL
+      "X-Title": "Reacture",                    // your app name
+    },
+    body: JSON.stringify({
+      model: "openai/gpt-4o-mini",
+      max_tokens: 300,
+      messages: [
+        { role: "system", content: system },
+        { role: "user",   content: user   },
+      ],
+    }),
+  });
 
   const data = await response.json();
 
   if (!response.ok) {
-    return res.status(500).json({ error: data?.error?.message || "Gemini error" });
+    return res.status(500).json({ error: data?.error?.message || "OpenRouter error" });
   }
 
-  // ✅ Map to the shape your compiler expects: { text: "PASS: ..." }
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  // ✅ Map to shape your compiler expects: { text: "PASS: ..." }
+  const text = data?.choices?.[0]?.message?.content || "";
   return res.status(200).json({ text });
 }
