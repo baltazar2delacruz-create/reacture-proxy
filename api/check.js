@@ -15,17 +15,31 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  let body = req.body;
+  
+  // If body is a string, parse it
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch (e) {
+      console.error("Failed to parse body:", e);
+      return res.status(400).json({ error: "Invalid JSON in request body" });
+    }
+  }
+
+  console.log("Request body:", JSON.stringify(body));
+
   let system, user;
   
   // Handle both formats
-  if (req.body.system && req.body.user) {
+  if (body.system && body.user) {
     // Format 1: { system: "...", user: "..." }
-    system = req.body.system;
-    user = req.body.user;
-  } else if (req.body.code && req.body.lessonId) {
+    system = body.system;
+    user = body.user;
+  } else if (body.code && body.lessonId) {
     // Format 2: { code: "...", lessonId: "...", expectedOutput: "..." }
-    const code = req.body.code;
-    const expectedOutput = req.body.expectedOutput || "";
+    const code = body.code;
+    const expectedOutput = body.expectedOutput || "";
     
     system = `You are Reacture AI Code Reviewer.
 Check if the student React JSX code fulfills the lesson task.
@@ -38,7 +52,12 @@ Rules:
     
     user = `Expected Output: ${expectedOutput}\n\nStudent App.jsx:\n${code}\n\nDoes this fulfill the task? Reply PASS: or FAIL: with short feedback.`;
   } else {
-    return res.status(400).json({ error: "Missing required fields: (system & user) OR (code & lessonId)" });
+    console.error("Missing fields. Body:", JSON.stringify(body));
+    return res.status(400).json({ 
+      error: "Missing required fields",
+      received: Object.keys(body),
+      expected: "(system & user) OR (code & lessonId)"
+    });
   }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
