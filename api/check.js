@@ -15,10 +15,30 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { system, user } = req.body;
-
-  if (!system || !user) {
-    return res.status(400).json({ error: "Missing system or user prompt" });
+  let system, user;
+  
+  // Handle both formats
+  if (req.body.system && req.body.user) {
+    // Format 1: { system: "...", user: "..." }
+    system = req.body.system;
+    user = req.body.user;
+  } else if (req.body.code && req.body.lessonId) {
+    // Format 2: { code: "...", lessonId: "...", expectedOutput: "..." }
+    const code = req.body.code;
+    const expectedOutput = req.body.expectedOutput || "";
+    
+    system = `You are Reacture AI Code Reviewer.
+Check if the student React JSX code fulfills the lesson task.
+Rules:
+- Evaluate ONLY whether the code satisfies the task.
+- Be lenient: if the code clearly achieves the core requirement, mark it PASS.
+- Do NOT fail for minor styling differences or variable naming.
+- Keep feedback SHORT (2-4 sentences), friendly, beginner-appropriate.
+- Always start with exactly "PASS:" or "FAIL:" (uppercase, colon, space).`;
+    
+    user = `Expected Output: ${expectedOutput}\n\nStudent App.jsx:\n${code}\n\nDoes this fulfill the task? Reply PASS: or FAIL: with short feedback.`;
+  } else {
+    return res.status(400).json({ error: "Missing required fields: (system & user) OR (code & lessonId)" });
   }
 
   const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
